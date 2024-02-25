@@ -4,6 +4,7 @@ import './App.css';
 import { BarChart } from '@mui/x-charts/BarChart'
 import { PieChart } from '@mui/x-charts/PieChart'
 import React, { useState, useEffect } from 'react'
+import OpenAI from "openai"
 
 
 function App() {
@@ -13,6 +14,9 @@ function App() {
   const [positiveSummary, setPositiveSummary] = useState('')
   const [issueSummary, setIssueSummary] = useState('')
   const [featureSummary, setFeatureSummary] = useState('')
+  const [competitorDoneWell, setCompetitorDoneWell] = useState('')
+  const [companyStepIn, setCompanyStepIn] = useState('')
+  const openai = new OpenAI({apiKey: process.env.REACT_APP_API_KEY, dangerouslyAllowBrowser: true})
 
   useEffect(() => {
     const fetchData = async () => {
@@ -77,10 +81,46 @@ const fetchFeatureData = async () => {
   }
 };
 
+
+
+  const fetchComparisonCompetitorsAdv = async (question) => {
+
+      let messages = [{ role: "system", content: "You will be given a question and two sets of reviews. The first set would be the reviews of my company and the second set is the reviews of the competitor's company. You need to examine both the company's reviews and come up with a relevant answer to the question. The answer should be short and crisp - preferably as bullet points. Make sure you stick to the question and analyze the data well to come up with the answer. Just give the answer as the response. Example: Question: What is something that both the companies have in common? My Company Review Set: good delivery service, worst food quality, my payment gateway crashed. Competitor Review Set: excellent food quality! loved it!, the delivery service is awesome, the UI is too cluttered. Your response might be: - Both the companies have a good delivery service experience." }]
+
+
+      let content = "Question: " + question + ' My Company Review Set: '
+      companyReviews.forEach(review => {
+        content += review + ' '; // Add each review followed by a newline character
+      })
+      content += ' Competitor Review Set: '
+      competitorReviews.forEach(review => {
+        content += review + ' '; // Add each review followed by a newline character
+      })
+
+
+      messages.push({role: "user", content: content})
+      const completion = await openai.chat.completions.create({
+        messages: messages,
+        model: "gpt-3.5-turbo",
+      });
+      console.log('hello')
+      console.log(completion.choices[0].message.content)
+      const res = completion.choices[0].message.content
+      const formattedText = res.replace(/\n/g, "<br><br>")
+      if(question == 'What are some areas where the competitor is doing well?'){
+        setCompetitorDoneWell(formattedText)
+      }
+      else{
+        setCompanyStepIn(formattedText)
+      }
+  }
+
     fetchData()
     fetchPositiveData()
     fetchIssueData()
     fetchFeatureData()
+    fetchComparisonCompetitorsAdv('What are some areas where the competitor is doing well?')
+    fetchComparisonCompetitorsAdv('What are some areas where my company can step in and the competitor is lacking?')
 }, [])
   
   const countSentiments = (reviews) => {
@@ -120,6 +160,37 @@ const fetchFeatureData = async () => {
 
     return featureReviewCount;
 }
+
+
+
+const companyReviews = [
+  "I absolutely love shopping with our company! The user interface is so intuitive and easy to navigate.",
+  "The delivery was incredibly fast, and the quality of the products exceeded my expectations.",
+  "I had an issue with my payment processing, but customer service was quick to resolve it. Very impressed with their support!",
+  "The variety of products available is outstanding. I can always find what I need.",
+  "Unfortunately, there was a delay in my delivery. It arrived a day later than expected.",
+  "The checkout process is smooth and hassle-free. Never had any problems with payments.",
+  "The packaging was done neatly, ensuring that the products arrived in perfect condition.",
+  "I'm satisfied with the overall quality of the items I purchased. Good value for money.",
+  "There are occasional glitches in the mobile app, but they're usually fixed quickly with updates.",
+  "I wish there were more options for same-day delivery. Sometimes I need items urgently."
+];
+
+const competitorReviews = [
+  "The website is slow to load, and it's frustrating to browse through products.",
+  "Quality control seems to be lacking. Some of the items I received were damaged.",
+  "I've had multiple issues with payments getting declined for no apparent reason.",
+  "The delivery took much longer than promised, causing inconvenience.",
+  "Their customer service is unresponsive. It's hard to get assistance when needed.",
+  "I love the loyalty program they offer. It's a great incentive to keep coming back.",
+  "The prices are competitive, but the shipping fees are quite high.",
+  "The mobile app crashes frequently, making it difficult to complete purchases.",
+  "The product descriptions on their website are inaccurate at times.",
+  "I had a pleasant experience shopping with them. The products were of good quality and arrived on time."
+]
+
+
+
 
 const countIssueReviews = (reviewData) => {
   let featureIssueCount = 0;
@@ -200,7 +271,7 @@ const getClusterFrequencies = (reviewData) =>  {
         <span class="text-xl font-semibold">DevRev Insights</span>
       </div>
       
-     {reviewData && reviewData.length > 0 && positiveSummary != '' && issueSummary != '' && featureSummary != '' ? (
+     {reviewData && reviewData.length > 0 && positiveSummary != '' && issueSummary != '' && featureSummary != '' && companyStepIn != '' && competitorDoneWell != '' ? (
       <div class="container m-2">
       <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-3 xl:grid-cols-3 gap-4">
         <div class="bg-white bg-opacity-75 rounded-lg p-4 shadow-md"><h2 class="text-lg font-semibold mb-4">Positive Reviews</h2>
@@ -261,6 +332,23 @@ const getClusterFrequencies = (reviewData) =>  {
         <div class="bg-white bg-opacity-75 rounded-lg p-4 shadow-md text-justify">
           <h3 className='font-bold'>What the most requested features are:</h3>
             <span dangerouslySetInnerHTML={{ __html: featureSummary }}></span>
+        </div>
+
+       
+      </div>
+      <h2 className='font-bold text-center text-2xl mt-4 mb-4'>Competitor analysis</h2>
+
+      <div className='grid grid-cols-1 sm:grid-cols-2 gap-4'>
+
+        
+      <div class="bg-white bg-opacity-75 rounded-lg p-4 shadow-md text-justify">
+          <h3 className='font-bold'>Where your competitor is doing well:</h3>
+            <span dangerouslySetInnerHTML={{ __html: competitorDoneWell }}></span>
+        </div>
+
+        <div class="bg-white bg-opacity-75 rounded-lg p-4 shadow-md text-justify">
+          <h3 className='font-bold'>Where you can step in:</h3>
+            <span dangerouslySetInnerHTML={{ __html: companyStepIn }}></span>
         </div>
       </div>
     </div>
